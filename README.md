@@ -1,9 +1,10 @@
 # waggregator - Discord Web App Game Score Tracker
 
+Web App Game Aggregator -> waggregator
+
 A Discord bot that automatically detects game score submissions, records player statistics, and tracks daily and all-time performance. Players can post their scores in a designated Discord text channel and receive an instant statistical summary.
 
 <img width="531" height="1303" alt="image" src="https://github.com/user-attachments/assets/fefc75e2-801b-43e5-9d61-9753d77a8a14" />
-
 
 ## Features
 
