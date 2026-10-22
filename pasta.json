@@ -1,0 +1,28 @@
+{
+  "timeguesser": {
+    "trigger": "TimeGuessr",
+    "score_index": "/",
+    "score_index_location": "after",
+    "score_max_width": 6,
+    "score_max": 50000
+  },
+  "maptap": {
+    "trigger": "www.maptap.gg",
+    "score_index": "Final score: ",
+    "score_index_location": "before",
+    "score_max_width": 4,
+    "score_max": 1000
+  },
+  "krillion": {
+    "trigger": "Krillion",
+    "score_regex": "(?m)^\\s*(\\d+)\\s*$",
+    "score_max": 700
+  },
+  "size it up": {
+    "trigger": "Size It Up",
+    "score_index": "Overall Score ",
+    "score_index_location": "before",
+    "score_max_width": 3,
+    "score_max": 500
+  }
+}
