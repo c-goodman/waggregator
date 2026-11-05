@@ -20,8 +20,8 @@
   },
   "size it up": {
     "trigger": "Size It Up",
-    "score_index": "Overall Score ",
-    "score_index_location": "before",
+    "score_index": "/",
+    "score_index_location": "after",
     "score_max_width": 3,
     "score_max": 500
   }
