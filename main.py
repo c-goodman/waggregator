@@ -537,7 +537,9 @@ class Client(discord.Client):
             return
 
         # Handle stats command
-        if message.content.strip().lower().startswith("!stats"):
+        s = message.content.strip().lower().startswith("!stats")
+        h = message.content.strip().lower().startswith("!help")
+        if s or h:
             await handle_stats_command(message)
             return
 
