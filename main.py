@@ -410,7 +410,7 @@ async def handle_stats_command(message):
         )
         return
 
-    if days <= 0:
+    if len(parts) == 2 and days <= 0:
         await message.reply(
             "Please provide a positive number of days.",
             mention_author=False,
