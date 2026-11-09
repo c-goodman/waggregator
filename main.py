@@ -385,9 +385,17 @@ async def handle_stats_command(message):
     parts = message.content.strip().split()
 
     # Validate argument count
-    if len(parts) > 2:
+    if not parts or (len(parts) > 2) or parts[0].lower() not in ["!stats", "!help"]:
         await message.reply(
-            "Usage: `!stats` or `!stats 30`",
+            "Unknown command. Use `!help` for usage information.",
+            mention_author=False,
+        )
+        return
+
+    # Return help message
+    if parts[0].lower().startswith("!help"):
+        await message.reply(
+            "Usage: `!stats` for all time or `!stats X` for past X number of days (e.g. `!stats 30`).",
             mention_author=False,
         )
         return
@@ -397,12 +405,12 @@ async def handle_stats_command(message):
         days = int(parts[1]) if len(parts) == 2 else 0
     except ValueError:
         await message.reply(
-            "Invalid number of days. Try `!stats` or `!stats 30`.",
+            "Invalid number of days. Try `!stats` for all time or `!stats 30` for past 30 days.",
             mention_author=False,
         )
         return
 
-    if days < 0:
+    if days <= 0:
         await message.reply(
             "Please provide a positive number of days.",
             mention_author=False,
@@ -420,7 +428,7 @@ async def handle_stats_command(message):
     # Construct response
     reply = build_history_message(
         stats,
-        days="All-time" if all_time else days,
+        days=None if all_time else days,
     )
 
     # Discord's message limit is 2000 characters
