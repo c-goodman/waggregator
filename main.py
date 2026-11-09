@@ -262,6 +262,255 @@ def get_player_stats(user_id: int, day_key: str) -> dict:
     }
 
 
+# ---------- History statistics ----------
+
+
+def get_history_stats(days: int | None, all_time: bool = True):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+
+        # Handle None or non-integer days values
+        if not isinstance(days, int):
+            days = 0
+
+        # Use SQLite string concatenation operator (||) to insert the number of days
+        history = conn.execute(
+            """
+            WITH daily_rankings AS (
+                SELECT
+                    user_id,
+                    username,
+                    game,
+                    day_key,
+                    raw_score,
+                    RANK() OVER (
+                        PARTITION BY game, day_key
+                        ORDER BY raw_score DESC
+                    ) AS daily_rank
+                FROM scores
+                WHERE (? = 1 OR created_at >= datetime('now', '-' || ? || ' days'))
+            ),
+            player_stats AS (
+                SELECT
+                    user_id,
+                    username,
+                    game,
+                    COUNT(DISTINCT day_key) AS games_played,
+                    AVG(raw_score) AS avg_raw_score,
+                    MAX(raw_score) AS max_raw_score,
+                    MIN(raw_score) AS min_raw_score
+                FROM scores
+                WHERE (? = 1 OR created_at >= datetime('now', '-' || ? || ' days'))
+                GROUP BY user_id, game
+            ),
+            player_wins AS (
+                SELECT
+                    user_id,
+                    game,
+                    COUNT(DISTINCT day_key) AS wins
+                FROM daily_rankings
+                WHERE daily_rank = 1
+                GROUP BY user_id, game
+            )
+            SELECT
+                ps.username,
+                ps.game,
+                ps.games_played,
+                COALESCE(pw.wins, 0) AS wins,
+                ps.avg_raw_score,
+                ps.max_raw_score,
+                ps.min_raw_score
+            FROM player_stats ps
+            LEFT JOIN player_wins pw
+                ON ps.user_id = pw.user_id
+                AND ps.game = pw.game
+            ORDER BY ps.game, ps.avg_raw_score DESC;
+            """,
+            (int(all_time), days, int(all_time), days),
+        ).fetchall()
+
+        return {
+            "history": [dict(row) for row in history],
+        }
+
+
+def build_history_message(stats, days: int | None):
+    history = stats.get("history", [])
+
+    if not history:
+        return "Historical Score Statistics\n\nNo historical scores found."
+
+    lines = [
+        f"**Historical Score Statistics**",
+        f"Last {days} days" if days else "All time",
+        "",
+    ]
+
+    games = {}
+
+    for row in history:
+        games.setdefault(row["game"], []).append(row)
+
+    for game, players in games.items():
+        players.sort(key=lambda p: p["avg_raw_score"], reverse=True)
+
+        lines.append(f"**{game.upper()}**")
+        lines.append(
+            "```"
+            "\n"
+            f"{'Player':<15} {'Games':>5} {'Wins':>5} {'Average':>10} "
+            f"{'Best':>7} {'Lowest':>7}"
+        )
+
+        for player in players:
+            lines.append(
+                f"{player['username']:<15} "
+                f"{player['games_played']:>5} "
+                f"{player['wins']:>5} "
+                f"{player['avg_raw_score']:>10,.2f} "
+                f"{player['max_raw_score']:>7,} "
+                f"{player['min_raw_score']:>7,}"
+            )
+
+        lines.append("```")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------- Message handling ----------
+
+
+async def handle_stats_command(message):
+    parts = message.content.strip().split()
+
+    # Validate argument count
+    if len(parts) > 2:
+        await message.reply(
+            "Usage: `!stats` or `!stats 30`",
+            mention_author=False,
+        )
+        return
+
+    # Parse optional days argument
+    try:
+        days = int(parts[1]) if len(parts) == 2 else 0
+    except ValueError:
+        await message.reply(
+            "Invalid number of days. Try `!stats` or `!stats 30`.",
+            mention_author=False,
+        )
+        return
+
+    if days < 0:
+        await message.reply(
+            "Please provide a positive number of days.",
+            mention_author=False,
+        )
+        return
+
+    all_time = len(parts) == 1
+
+    # Retrieve historical statistics
+    stats = get_history_stats(
+        days=days,
+        all_time=all_time,
+    )
+
+    # Construct response
+    reply = build_history_message(
+        stats,
+        days="All-time" if all_time else days,
+    )
+
+    # Discord's message limit is 2000 characters
+    if len(reply) > 2000:
+        await message.reply(
+            "Your statistics are too large for one message.",
+            mention_author=False,
+        )
+        return
+
+    await message.reply(reply, mention_author=False)
+
+
+async def handle_game_entry(message):
+    game = get_trigger_from_message(message.content)
+
+    if game is None:
+        return
+
+    parsed = get_normalized_score(game, message.content)
+
+    if parsed is None:
+        await message.reply(
+            f"I detected **{game}**, but couldn't parse "
+            "a valid score from your message.",
+            mention_author=False,
+        )
+        return
+
+    raw_score, max_score, normalized = parsed
+
+    # Parse created at to get the day key
+    created_at = message.created_at
+    day_key = created_at.astimezone(DAILY_TIMEZONE).date().isoformat()
+
+    saved = save_score(
+        message_id=message.id,
+        user_id=message.author.id,
+        username=message.author.display_name,
+        game=game,
+        raw_score=raw_score,
+        max_score=max_score,
+        normalized_score=normalized,
+        created_at=created_at.astimezone(timezone.utc).isoformat(),
+        day_key=day_key,
+    )
+
+    if not saved:
+        # Avoid counting the same message twice.
+        await message.reply(
+            f"⚠️ {message.author.mention}, you've already "
+            f"submitted a score for **{game}** on "
+            f"**{day_key}**. Your new score wasn't recorded.",
+            mention_author=False,
+        )
+        return
+
+    stats = get_player_stats(message.author.id, day_key=day_key)
+
+    daily = stats["daily"]
+    overall = stats["overall"]
+
+    game_lines = [
+        f"- **{row['game']}**: "
+        f"{row['games_played']} games, "
+        f"total {row['total_score']:.2f}, "
+        f"avg {row['average_score']:.2f}%"
+        for row in stats["by_game"]
+    ]
+
+    reply = (
+        f"📊 **Score update for {message.author.display_name}**\n"
+        f"Date: **{day_key}**\n\n"
+        f"**Latest game: {game}**\n"
+        f"Score: {raw_score:,}/{max_score:,} "
+        f"({normalized:.2f}%)\n\n"
+        f"**Today's statistics**\n"
+        f"Games played: **{daily['games_played']}**\n"
+        f"Normalized total: **{daily['total_score']:.2f}**\n"
+        f"Normalized average: **{daily['average_score']:.2f}%**\n\n"
+        f"**All-time statistics**\n"
+        f"Games played: **{overall['games_played']}**\n"
+        f"Normalized total: **{overall['total_score']:.2f}**\n"
+        f"Normalized average: **{overall['average_score']:.2f}%**\n\n"
+        f"**Today's games**\n" + ("\n".join(game_lines) or "No games yet.")
+    )
+
+    await message.reply(reply, mention_author=False)
+
+
 # ---------- Discord bot ----------
 
 
@@ -279,80 +528,12 @@ class Client(discord.Client):
         if message.channel.id != chat_id:
             return
 
-        game = get_trigger_from_message(message.content)
-
-        if game is None:
+        # Handle stats command
+        if message.content.strip().lower().startswith("!stats"):
+            await handle_stats_command(message)
             return
 
-        parsed = get_normalized_score(game, message.content)
-
-        if parsed is None:
-            await message.reply(
-                f"I detected **{game}**, but couldn't parse "
-                "a valid score from your message.",
-                mention_author=False,
-            )
-            return
-
-        raw_score, max_score, normalized = parsed
-
-        # Parse created at to get the day key
-        created_at = message.created_at
-        day_key = created_at.astimezone(DAILY_TIMEZONE).date().isoformat()
-
-        saved = save_score(
-            message_id=message.id,
-            user_id=message.author.id,
-            username=message.author.display_name,
-            game=game,
-            raw_score=raw_score,
-            max_score=max_score,
-            normalized_score=normalized,
-            created_at=created_at.astimezone(timezone.utc).isoformat(),
-            day_key=day_key,
-        )
-
-        if not saved:
-            # Avoid counting the same message twice.
-            await message.reply(
-                f"⚠️ {message.author.mention}, you've already "
-                f"submitted a score for **{game}** on "
-                f"**{day_key}**. Your new score wasn't recorded.",
-                mention_author=False,
-            )
-            return
-
-        stats = get_player_stats(message.author.id, day_key=day_key)
-
-        daily = stats["daily"]
-        overall = stats["overall"]
-
-        game_lines = [
-            f"- **{row['game']}**: "
-            f"{row['games_played']} games, "
-            f"total {row['total_score']:.2f}, "
-            f"avg {row['average_score']:.2f}%"
-            for row in stats["by_game"]
-        ]
-
-        reply = (
-            f"📊 **Score update for {message.author.display_name}**\n"
-            f"Date: **{day_key}**\n\n"
-            f"**Latest game: {game}**\n"
-            f"Score: {raw_score:,}/{max_score:,} "
-            f"({normalized:.2f}%)\n\n"
-            f"**Today's statistics**\n"
-            f"Games played: **{daily['games_played']}**\n"
-            f"Normalized total: **{daily['total_score']:.2f}**\n"
-            f"Normalized average: **{daily['average_score']:.2f}%**\n\n"
-            f"**All-time statistics**\n"
-            f"Games played: **{overall['games_played']}**\n"
-            f"Normalized total: **{overall['total_score']:.2f}**\n"
-            f"Normalized average: **{overall['average_score']:.2f}%**\n\n"
-            f"**Today's games**\n" + ("\n".join(game_lines) or "No games yet.")
-        )
-
-        await message.reply(reply, mention_author=False)
+        await handle_game_entry(message)
 
 
 # ---------- Start ----------
