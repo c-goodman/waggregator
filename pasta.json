@@ -24,5 +24,12 @@
     "score_index_location": "after",
     "score_max_width": 3,
     "score_max": 500
+  },
+  "scrandle": {
+    "trigger": "scrandle.com",
+    "score_index": "/",
+    "score_index_location": "after",
+    "score_max_width": 1,
+    "score_max": 10
   }
 }
