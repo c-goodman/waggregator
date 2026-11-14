@@ -168,7 +168,21 @@ def get_normalized_score(
     if not 0 <= raw_score <= max_score:
         return None
 
-    normalized = raw_score / max_score * 100
+    # Retrieve the score direction for the game settings object, if none is found return "higher" by default
+    score_direction = settings.get("score_direction", "higher")
+
+    # Normalize as 100/100 is 100%
+    if score_direction == "higher":
+        normalized = raw_score / max_score * 100
+
+    # Normalize as 1/100 is 100% and 100/100 is 0%
+    elif score_direction == "lower":
+        normalized = (max_score - raw_score) / (max_score - 1) * 100
+        # Overwrite the raw score with the rounded normalized score for consistency
+        raw_score = int(round(normalized, 0))
+
+    else:
+        raise ValueError(f"Invalid score_direction for {game}: {score_direction}")
 
     return raw_score, max_score, normalized
 

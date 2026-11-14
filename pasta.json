@@ -4,32 +4,45 @@
     "score_index": "/",
     "score_index_location": "after",
     "score_max_width": 6,
-    "score_max": 50000
+    "score_max": 50000,
+    "score_direction": "higher"
   },
   "maptap": {
     "trigger": "www.maptap.gg",
     "score_index": "Final score: ",
     "score_index_location": "before",
     "score_max_width": 4,
-    "score_max": 1000
+    "score_max": 1000,
+    "score_direction": "higher"
   },
   "krillion": {
     "trigger": "Krillion",
     "score_regex": "(?m)^\\s*(\\d+)\\s*$",
-    "score_max": 700
+    "score_max": 700,
+    "score_direction": "higher"
   },
   "size it up": {
     "trigger": "Size It Up",
     "score_index": "/",
     "score_index_location": "after",
     "score_max_width": 3,
-    "score_max": 500
+    "score_max": 500,
+    "score_direction": "higher"
   },
   "scrandle": {
     "trigger": "scrandle.com",
     "score_index": "/",
     "score_index_location": "after",
     "score_max_width": 1,
-    "score_max": 10
+    "score_max": 10,
+    "score_direction": "higher"
+  },
+  "satle": {
+    "trigger": "satle.ca",
+    "score_index": "/",
+    "score_index_location": "after",
+    "score_max_width": 1,
+    "score_max": 6,
+    "score_direction": "lower"
   }
 }
