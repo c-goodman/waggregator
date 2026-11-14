@@ -31,5 +31,12 @@
     "score_index_location": "after",
     "score_max_width": 1,
     "score_max": 10
+  },
+  "satle": {
+    "trigger": "satle.ca",
+    "score_index": "/",
+    "score_index_location": "after",
+    "score_max_width": 1,
+    "score_max": 6
   }
 }
