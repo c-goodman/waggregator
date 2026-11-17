@@ -44,5 +44,11 @@
     "score_max_width": 1,
     "score_max": 6,
     "score_direction": "lower"
+  },
+  "geoguessr": {
+    "trigger": "GeoGuessr Daily",
+    "score_regex": "·\\s*[\\d/]+\\s*·\\s*(\\d{1,5}(?:,\\d{3})?)",
+    "score_max": 25000,
+    "score_direction": "higher"
   }
 }
