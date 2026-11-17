@@ -33,7 +33,7 @@
     "trigger": "scrandle.com",
     "score_index": "/",
     "score_index_location": "after",
-    "score_max_width": 1,
+    "score_max_width": 2,
     "score_max": 10,
     "score_direction": "higher"
   },
