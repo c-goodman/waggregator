@@ -50,5 +50,13 @@
     "score_regex": "·\\s*[\\d/]+\\s*·\\s*(\\d{1,5}(?:,\\d{3})?)",
     "score_max": 25000,
     "score_direction": "higher"
+  },
+  "atless": {
+    "trigger": "Atless",
+    "score_index": " / ",
+    "score_index_location": "after",
+    "score_max_width": 6,
+    "score_max": 50000,
+    "score_direction": "higher"
   }
 }
