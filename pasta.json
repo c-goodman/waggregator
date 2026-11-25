@@ -58,5 +58,11 @@
     "score_max_width": 6,
     "score_max": 50000,
     "score_direction": "higher"
+  },
+  "noillirk": {
+    "trigger": "Noillirk",
+    "score_regex": "No\\.\\s*\\d+\\s*·\\s*([\\d,]+)m",
+    "score_max": 14000,
+    "score_direction": "higher"
   }
 }
